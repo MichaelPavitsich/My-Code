@@ -1,0 +1,93 @@
+//paste this into the prowser console whilst playing blooket study.It is important that in the game your'e playing the correct answer is always in one spot. You will see a gui apear. Put this on the answer position where the correct answer will always be and press start. This will start a loop clicking on where the mouse is and pressing the space bar. 
+
+
+(function () {
+  // ---- GUI STYLES ----
+  const style = document.createElement('style');
+  style.textContent = `
+    #clickerPanel {
+      position: fixed;
+      top: 50px;
+      left: 50px;
+      background: #222;
+      color: white;
+      padding: 10px;
+      border-radius: 8px;
+      z-index: 9999;
+      font-family: sans-serif;
+      box-shadow: 0 0 10px #000;
+      cursor: move;
+    }
+    #clickerPanel button {
+      margin: 5px;
+      padding: 5px 10px;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      font-weight: bold;
+    }
+    #startClicker { background-color: #28a745; color: white; }
+    #stopClicker { background-color: #dc3545; color: white; }
+  `;
+  document.head.appendChild(style);
+
+  // ---- GUI PANEL ----
+  const panel = document.createElement('div');
+  panel.id = 'clickerPanel';
+  panel.innerHTML = `
+    <div><strong>Blooket Clicker</strong></div>
+    <button id="startClicker">Start</button>
+    <button id="stopClicker">Stop</button>
+  `;
+  document.body.appendChild(panel);
+
+  // ---- DRAGGABLE PANEL ----
+  let isDragging = false, offsetX = 0, offsetY = 0;
+  panel.addEventListener('mousedown', e => {
+    isDragging = true;
+    offsetX = e.offsetX;
+    offsetY = e.offsetY;
+  });
+  document.addEventListener('mousemove', e => {
+    if (isDragging) {
+      panel.style.left = `${e.pageX - offsetX}px`;
+      panel.style.top = `${e.pageY - offsetY}px`;
+    }
+  });
+  document.addEventListener('mouseup', () => isDragging = false);
+
+  // ---- MOUSE TRACKING ----
+  document.onmousemove = function (e) {
+    window._lastMouse = { clientX: e.clientX, clientY: e.clientY };
+  };
+
+  // ---- CLICK & SPACE LOOP ----
+  let clickerInterval = null;
+  function startClicker() {
+    if (clickerInterval) return;
+    clickerInterval = setInterval(() => {
+      const { clientX, clientY } = window._lastMouse || { clientX: 0, clientY: 0 };
+      const el = document.elementFromPoint(clientX, clientY);
+      if (el) el.click();
+
+      const spaceEvent = new KeyboardEvent('keydown', {
+        key: ' ',
+        code: 'Space',
+        keyCode: 32,
+        which: 32,
+        bubbles: true,
+        cancelable: true
+      });
+      document.dispatchEvent(spaceEvent);
+    }, 0); // <-- FASTEST POSSIBLE SPEED
+  }
+
+  function stopClicker() {
+    clearInterval(clickerInterval);
+    clickerInterval = null;
+  }
+
+  // ---- BUTTON EVENTS ----
+  document.getElementById('startClicker').onclick = startClicker;
+  document.getElementById('stopClicker').onclick = stopClicker;
+})();
