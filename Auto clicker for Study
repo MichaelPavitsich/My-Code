@@ -1,5 +1,4 @@
-//paste this into the prowser console whilst playing blooket study.It is important that in the game your'e playing the correct answer is always in one spot. You will see a gui apear. Put this on the answer position where the correct answer will always be and press start. This will start a loop clicking on where the mouse is and pressing the space bar. 
-
+//paste this into the browser console whilst playing blooket study.It is important that in the game your'e playing the correct answer is always in one spot. You will see a gui apear. Put this on the answer position where the correct answer will always be and press start. This will start a loop clicking on where the mouse is and pressing the space bar. 
 
 (function () {
   // ---- GUI STYLES ----
@@ -11,15 +10,15 @@
       left: 50px;
       background: #222;
       color: white;
-      padding: 10px;
+      padding: 10px 15px 15px 15px;
       border-radius: 8px;
       z-index: 9999;
       font-family: sans-serif;
       box-shadow: 0 0 10px #000;
-      cursor: move;
+      min-width: 180px;
     }
     #clickerPanel button {
-      margin: 5px;
+      margin: 5px 5px 0 0;
       padding: 5px 10px;
       border: none;
       border-radius: 5px;
@@ -28,6 +27,22 @@
     }
     #startClicker { background-color: #28a745; color: white; }
     #stopClicker { background-color: #dc3545; color: white; }
+    #closeClicker {
+      position: absolute;
+      top: 5px;
+      right: 5px;
+      background: #888;
+      color: white;
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      border: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      cursor: pointer;
+    }
   `;
   document.head.appendChild(style);
 
@@ -35,7 +50,8 @@
   const panel = document.createElement('div');
   panel.id = 'clickerPanel';
   panel.innerHTML = `
-    <div><strong>Blooket Clicker</strong></div>
+    <button id="closeClicker">✕</button>
+    <div style="margin-top: 10px; font-weight: bold;">Blooket Clicker</div>
     <button id="startClicker">Start</button>
     <button id="stopClicker">Stop</button>
   `;
@@ -44,9 +60,11 @@
   // ---- DRAGGABLE PANEL ----
   let isDragging = false, offsetX = 0, offsetY = 0;
   panel.addEventListener('mousedown', e => {
-    isDragging = true;
-    offsetX = e.offsetX;
-    offsetY = e.offsetY;
+    if (e.target.id !== 'closeClicker' && e.target.tagName !== 'BUTTON') {
+      isDragging = true;
+      offsetX = e.offsetX;
+      offsetY = e.offsetY;
+    }
   });
   document.addEventListener('mousemove', e => {
     if (isDragging) {
@@ -79,7 +97,7 @@
         cancelable: true
       });
       document.dispatchEvent(spaceEvent);
-    }, 0); // <-- FASTEST POSSIBLE SPEED
+    }, 0);
   }
 
   function stopClicker() {
@@ -87,7 +105,15 @@
     clickerInterval = null;
   }
 
+  function closeClicker() {
+    stopClicker();
+    panel.remove();
+    style.remove();
+    document.onmousemove = null;
+  }
+
   // ---- BUTTON EVENTS ----
   document.getElementById('startClicker').onclick = startClicker;
   document.getElementById('stopClicker').onclick = stopClicker;
+  document.getElementById('closeClicker').onclick = closeClicker;
 })();
