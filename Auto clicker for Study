@@ -15,22 +15,21 @@
       z-index: 9999;
       font-family: sans-serif;
       box-shadow: 0 0 10px #000;
-      min-width: 180px;
+      min-width: 220px;
     }
     #clickerPanel button {
       margin: 5px 5px 0 0;
-      padding: 5px 10px;
       border: none;
       border-radius: 5px;
       cursor: pointer;
       font-weight: bold;
     }
-    #startClicker { background-color: #28a745; color: white; }
-    #stopClicker { background-color: #dc3545; color: white; }
-    #closeClicker {
+    #startClicker { background-color: #28a745; color: white; padding: 5px 10px; }
+    #stopClicker { background-color: #dc3545; color: white; padding: 5px 10px; }
+
+    .clickerHeaderButton {
       position: absolute;
       top: 5px;
-      right: 5px;
       background: #888;
       color: white;
       width: 24px;
@@ -40,8 +39,29 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 14px;
+      font-size: 16px;
+      line-height: 1;
+      padding: 0;
       cursor: pointer;
+    }
+    #minimizeClicker {
+      right: 34px;
+    }
+    #closeClicker {
+      right: 5px;
+    }
+    #delayControl {
+      margin-top: 10px;
+    }
+    #delayLabel {
+      margin-bottom: 4px;
+      display: block;
+    }
+    input[type="range"] {
+      width: 100%;
+    }
+    #clickerContent.collapsed {
+      display: none;
     }
   `;
   document.head.appendChild(style);
@@ -50,17 +70,24 @@
   const panel = document.createElement('div');
   panel.id = 'clickerPanel';
   panel.innerHTML = `
-    <button id="closeClicker">✕</button>
+    <button id="minimizeClicker" class="clickerHeaderButton">🗕</button>
+    <button id="closeClicker" class="clickerHeaderButton">✕</button>
     <div style="margin-top: 10px; font-weight: bold;">Blooket Clicker</div>
-    <button id="startClicker">Start</button>
-    <button id="stopClicker">Stop</button>
+    <div id="clickerContent">
+      <button id="startClicker">Start</button>
+      <button id="stopClicker">Stop</button>
+      <div id="delayControl">
+        <label id="delayLabel">Delay: <span id="delayValue">0</span> ms</label>
+        <input type="range" id="clickDelaySlider" min="0" max="1000" value="0">
+      </div>
+    </div>
   `;
   document.body.appendChild(panel);
 
   // ---- DRAGGABLE PANEL ----
   let isDragging = false, offsetX = 0, offsetY = 0;
   panel.addEventListener('mousedown', e => {
-    if (e.target.id !== 'closeClicker' && e.target.tagName !== 'BUTTON') {
+    if (!['BUTTON', 'INPUT'].includes(e.target.tagName)) {
       isDragging = true;
       offsetX = e.offsetX;
       offsetY = e.offsetY;
@@ -81,8 +108,10 @@
 
   // ---- CLICK & SPACE LOOP ----
   let clickerInterval = null;
+  let currentDelay = 0;
+
   function startClicker() {
-    if (clickerInterval) return;
+    stopClicker(); // Clear old loop
     clickerInterval = setInterval(() => {
       const { clientX, clientY } = window._lastMouse || { clientX: 0, clientY: 0 };
       const el = document.elementFromPoint(clientX, clientY);
@@ -97,12 +126,14 @@
         cancelable: true
       });
       document.dispatchEvent(spaceEvent);
-    }, 0);
+    }, currentDelay);
   }
 
   function stopClicker() {
-    clearInterval(clickerInterval);
-    clickerInterval = null;
+    if (clickerInterval) {
+      clearInterval(clickerInterval);
+      clickerInterval = null;
+    }
   }
 
   function closeClicker() {
@@ -112,8 +143,28 @@
     document.onmousemove = null;
   }
 
+  // ---- SLIDER EVENT ----
+  const delaySlider = document.getElementById('clickDelaySlider');
+  const delayValueLabel = document.getElementById('delayValue');
+  delaySlider.oninput = () => {
+    currentDelay = parseInt(delaySlider.value);
+    delayValueLabel.textContent = currentDelay;
+    if (clickerInterval) startClicker(); // restart with new delay
+  };
+  delaySlider.oninput(); // initialize value
+
   // ---- BUTTON EVENTS ----
   document.getElementById('startClicker').onclick = startClicker;
   document.getElementById('stopClicker').onclick = stopClicker;
   document.getElementById('closeClicker').onclick = closeClicker;
+
+  // ---- MINIMIZE TOGGLE ----
+  const clickerContent = document.getElementById('clickerContent');
+  const minimizeButton = document.getElementById('minimizeClicker');
+  let minimized = false;
+  minimizeButton.onclick = () => {
+    minimized = !minimized;
+    clickerContent.classList.toggle('collapsed', minimized);
+    minimizeButton.textContent = minimized ? '🗖' : '🗕';
+  };
 })();
