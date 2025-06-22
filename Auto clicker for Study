@@ -61,6 +61,16 @@
     #clickerContent.collapsed {
       display: none;
     }
+    #clickerStatus {
+      margin-top: 10px;
+      font-size: 13px;
+    }
+    #clickerStatus .dot {
+      font-size: 20px;
+      vertical-align: middle;
+    }
+    .running .dot { color: #28a745; }
+    .stopped .dot { color: #dc3545; }
   `;
   document.head.appendChild(style);
 
@@ -77,6 +87,9 @@
       <div id="delayControl">
         <label id="delayLabel">Delay: <span id="delayValue">0</span> ms</label>
         <input type="range" id="clickDelaySlider" min="0" max="1000" value="0">
+      </div>
+      <div id="clickerStatus" class="stopped">
+        <span class="dot">●</span> Stopped
       </div>
     </div>
   `;
@@ -108,6 +121,12 @@
   let clickerInterval = null;
   let currentDelay = 0;
 
+  const updateStatus = (running) => {
+    const status = document.getElementById('clickerStatus');
+    status.className = running ? 'running' : 'stopped';
+    status.innerHTML = `<span class="dot">●</span> ${running ? 'Running' : 'Stopped'}`;
+  };
+
   function startClicker() {
     stopClicker();
     clickerInterval = setInterval(() => {
@@ -129,12 +148,14 @@
         document.dispatchEvent(spaceEvent);
       }
     }, currentDelay);
+    updateStatus(true);
   }
 
   function stopClicker() {
     if (clickerInterval) {
       clearInterval(clickerInterval);
       clickerInterval = null;
+      updateStatus(false);
     }
   }
 
