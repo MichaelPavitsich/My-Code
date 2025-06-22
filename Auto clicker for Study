@@ -30,8 +30,6 @@
     #toggleAnimations { background-color: #ffc107; color: black; }
 
     .clickerHeaderButton {
-      position: absolute;
-      top: 5px;
       background: #888;
       color: white;
       width: 24px;
@@ -45,9 +43,31 @@
       line-height: 1;
       padding: 0;
       cursor: pointer;
+      margin-left: 5px; /* space between buttons */
+      position: static;
     }
-    #minimizeClicker { right: 34px; }
-    #closeClicker { right: 5px; }
+
+    #clickerHeader {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: relative;
+      padding: 5px 10px;
+    }
+    #headerLeft {
+      width: 24px; /* empty space, same as button size, to balance right */
+    }
+    #headerCenter {
+      flex-grow: 1;
+      text-align: center;
+      font-weight: bold;
+      user-select: none;
+    }
+    #headerRight {
+      display: flex;
+      align-items: center;
+      /* buttons side by side on right */
+    }
 
     #delayControl {
       margin-top: 10px;
@@ -79,10 +99,15 @@
   const panel = document.createElement('div');
   panel.id = 'clickerPanel';
   panel.innerHTML = `
-    <button id="minimizeClicker" class="clickerHeaderButton">🗕</button>
-    <button id="closeClicker" class="clickerHeaderButton">✕</button>
-    <div style="margin-top: 10px; font-weight: bold;">Blooket Clicker</div>
-    <div id="clickerContent">
+    <div id="clickerHeader">
+      <div id="headerLeft"></div>
+      <div id="headerCenter">Blooket Clicker</div>
+      <div id="headerRight">
+        <button id="minimizeClicker" class="clickerHeaderButton">🗕</button>
+        <button id="closeClicker" class="clickerHeaderButton">✕</button>
+      </div>
+    </div>
+    <div id="clickerContent" style="margin-top: 10px;">
       <button id="startClicker">Start</button>
       <button id="stopClicker">Stop</button>
       <button id="toggleAnimations">Toggle Animations</button>
@@ -209,4 +234,5 @@
   };
   delaySlider.oninput();
 })();
+
 
