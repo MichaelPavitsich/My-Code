@@ -1,7 +1,7 @@
 //paste this into the browser console whilst playing blooket study.It is important that in the game your'e playing the correct answer is always in one spot. You will see a gui apear. Put this on the answer position where the correct answer will always be and press start. This will start a loop clicking on where the mouse is and pressing the space bar. 
 
 (function () {
-  // ---- GUI STYLES ----
+  // ----- Styles -----
   const style = document.createElement('style');
   style.textContent = `
     #clickerPanel {
@@ -23,9 +23,10 @@
       border-radius: 5px;
       cursor: pointer;
       font-weight: bold;
+      padding: 5px 10px;
     }
-    #startClicker { background-color: #28a745; color: white; padding: 5px 10px; }
-    #stopClicker { background-color: #dc3545; color: white; padding: 5px 10px; }
+    #startClicker { background-color: #28a745; color: white; }
+    #stopClicker { background-color: #dc3545; color: white; }
 
     .clickerHeaderButton {
       position: absolute;
@@ -44,12 +45,9 @@
       padding: 0;
       cursor: pointer;
     }
-    #minimizeClicker {
-      right: 34px;
-    }
-    #closeClicker {
-      right: 5px;
-    }
+    #minimizeClicker { right: 34px; }
+    #closeClicker { right: 5px; }
+
     #delayControl {
       margin-top: 10px;
     }
@@ -66,7 +64,7 @@
   `;
   document.head.appendChild(style);
 
-  // ---- GUI PANEL ----
+  // ----- GUI Panel -----
   const panel = document.createElement('div');
   panel.id = 'clickerPanel';
   panel.innerHTML = `
@@ -84,7 +82,7 @@
   `;
   document.body.appendChild(panel);
 
-  // ---- DRAGGABLE PANEL ----
+  // ----- Dragging -----
   let isDragging = false, offsetX = 0, offsetY = 0;
   panel.addEventListener('mousedown', e => {
     if (!['BUTTON', 'INPUT'].includes(e.target.tagName)) {
@@ -101,31 +99,35 @@
   });
   document.addEventListener('mouseup', () => isDragging = false);
 
-  // ---- MOUSE TRACKING ----
+  // ----- Mouse Tracking -----
   document.onmousemove = function (e) {
     window._lastMouse = { clientX: e.clientX, clientY: e.clientY };
   };
 
-  // ---- CLICK & SPACE LOOP ----
+  // ----- Clicker -----
   let clickerInterval = null;
   let currentDelay = 0;
 
   function startClicker() {
-    stopClicker(); // Clear old loop
+    stopClicker();
     clickerInterval = setInterval(() => {
       const { clientX, clientY } = window._lastMouse || { clientX: 0, clientY: 0 };
       const el = document.elementFromPoint(clientX, clientY);
-      if (el) el.click();
 
-      const spaceEvent = new KeyboardEvent('keydown', {
-        key: ' ',
-        code: 'Space',
-        keyCode: 32,
-        which: 32,
-        bubbles: true,
-        cancelable: true
-      });
-      document.dispatchEvent(spaceEvent);
+      // Prevent clicking inside GUI panel
+      if (el && !panel.contains(el)) {
+        el.click();
+
+        const spaceEvent = new KeyboardEvent('keydown', {
+          key: ' ',
+          code: 'Space',
+          keyCode: 32,
+          which: 32,
+          bubbles: true,
+          cancelable: true
+        });
+        document.dispatchEvent(spaceEvent);
+      }
     }, currentDelay);
   }
 
@@ -136,35 +138,32 @@
     }
   }
 
-  function closeClicker() {
+  // ----- Button Events -----
+  document.getElementById('startClicker').onclick = startClicker;
+  document.getElementById('stopClicker').onclick = stopClicker;
+  document.getElementById('closeClicker').onclick = () => {
     stopClicker();
     panel.remove();
     style.remove();
     document.onmousemove = null;
-  }
+  };
 
-  // ---- SLIDER EVENT ----
+  const contentDiv = document.getElementById('clickerContent');
+  let minimized = false;
+  document.getElementById('minimizeClicker').onclick = () => {
+    minimized = !minimized;
+    contentDiv.classList.toggle('collapsed', minimized);
+    document.getElementById('minimizeClicker').textContent = minimized ? '🗖' : '🗕';
+  };
+
+  // ----- Delay Slider -----
   const delaySlider = document.getElementById('clickDelaySlider');
   const delayValueLabel = document.getElementById('delayValue');
   delaySlider.oninput = () => {
     currentDelay = parseInt(delaySlider.value);
     delayValueLabel.textContent = currentDelay;
-    if (clickerInterval) startClicker(); // restart with new delay
+    if (clickerInterval) startClicker(); // Restart with new delay
   };
-  delaySlider.oninput(); // initialize value
-
-  // ---- BUTTON EVENTS ----
-  document.getElementById('startClicker').onclick = startClicker;
-  document.getElementById('stopClicker').onclick = stopClicker;
-  document.getElementById('closeClicker').onclick = closeClicker;
-
-  // ---- MINIMIZE TOGGLE ----
-  const clickerContent = document.getElementById('clickerContent');
-  const minimizeButton = document.getElementById('minimizeClicker');
-  let minimized = false;
-  minimizeButton.onclick = () => {
-    minimized = !minimized;
-    clickerContent.classList.toggle('collapsed', minimized);
-    minimizeButton.textContent = minimized ? '🗖' : '🗕';
-  };
+  delaySlider.oninput();
 })();
+
