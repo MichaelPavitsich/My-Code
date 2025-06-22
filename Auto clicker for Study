@@ -27,6 +27,7 @@
     }
     #startClicker { background-color: #28a745; color: white; }
     #stopClicker { background-color: #dc3545; color: white; }
+    #toggleAnimations { background-color: #ffc107; color: black; }
 
     .clickerHeaderButton {
       position: absolute;
@@ -84,6 +85,7 @@
     <div id="clickerContent">
       <button id="startClicker">Start</button>
       <button id="stopClicker">Stop</button>
+      <button id="toggleAnimations">Toggle Animations</button>
       <div id="delayControl">
         <label id="delayLabel">Delay: <span id="delayValue">0</span> ms</label>
         <input type="range" id="clickDelaySlider" min="0" max="1000" value="0">
@@ -159,11 +161,31 @@
     }
   }
 
+  // ----- Animation toggle -----
+  let animationsDisabled = false;
+  let animStyle = null;
+  function toggleAnimations() {
+    if (!animationsDisabled) {
+      animStyle = document.createElement("style");
+      animStyle.textContent = `* { transition: none !important; animation: none !important; }`;
+      document.head.appendChild(animStyle);
+      document.getElementById('toggleAnimations').style.backgroundColor = '#28a745';
+      document.getElementById('toggleAnimations').style.color = 'white';
+    } else {
+      animStyle?.remove();
+      document.getElementById('toggleAnimations').style.backgroundColor = '#ffc107';
+      document.getElementById('toggleAnimations').style.color = 'black';
+    }
+    animationsDisabled = !animationsDisabled;
+  }
+
   // ----- Button Events -----
   document.getElementById('startClicker').onclick = startClicker;
   document.getElementById('stopClicker').onclick = stopClicker;
+  document.getElementById('toggleAnimations').onclick = toggleAnimations;
   document.getElementById('closeClicker').onclick = () => {
     stopClicker();
+    animStyle?.remove();
     panel.remove();
     style.remove();
     document.onmousemove = null;
