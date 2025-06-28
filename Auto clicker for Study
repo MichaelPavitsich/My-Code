@@ -1,5 +1,3 @@
-//paste this into the browser console whilst playing blooket study.It is important that in the game your'e playing the correct answer is always in one spot. You will see a gui apear. Put this on the answer position where the correct answer will always be and press start. This will start a loop clicking on where the mouse is and pressing the space bar. 
-
 (function () {
   // ----- Styles -----
   const style = document.createElement('style');
@@ -29,6 +27,8 @@
     #startClicker { background-color: #28a745; color: white; }
     #stopClicker { background-color: #dc3545; color: white; }
     #toggleAnimations { background-color: #ffc107; color: black; }
+    #setClickPosition { background-color: #007bff; color: white; }
+    #clearClickPoint { background-color: #6c757d; color: white; }
 
     .clickerHeaderButton {
       background: #888;
@@ -96,7 +96,7 @@
   panel.id = 'clickerPanel';
   panel.innerHTML = `
     <div id="header">
-      <div id="headerTitle">Blooket Clicker</div>
+      <div id="headerTitle">Auto Clicker</div>
       <div id="headerButtons">
         <button id="minimizeClicker" class="clickerHeaderButton">🗕</button>
         <button id="closeClicker" class="clickerHeaderButton">✕</button>
@@ -118,7 +118,12 @@
         <input type="range" id="clickDelaySlider" min="0" max="1000" value="0">
       </div>
 
-      <div style="margin-top: 10px; user-select:none;">Toggle Blooket delays</div>
+      <div style="margin-top:10px;">
+        <button id="setClickPosition">Set Click Point</button>
+        <button id="clearClickPoint">Clear Click Point</button>
+      </div>
+
+      <div style="margin-top: 10px;">Toggle Animation Effects</div>
       <button id="toggleAnimations" style="margin-top: 5px;">Toggle Animations</button>
     </div>
   `;
@@ -141,14 +146,11 @@
   });
   document.addEventListener('mouseup', () => isDragging = false);
 
-  // ----- Mouse Tracking -----
-  document.onmousemove = function (e) {
-    window._lastMouse = { clientX: e.clientX, clientY: e.clientY };
-  };
-
-  // ----- Clicker -----
+  // ----- Clicker Logic -----
   let clickerInterval = null;
   let currentDelay = 0;
+  let fixedClickPosition = null;
+  let awaitingClick = false;
 
   const updateStatus = (running) => {
     const status = document.getElementById('clickerStatus');
@@ -159,10 +161,8 @@
   function startClicker() {
     stopClicker();
     clickerInterval = setInterval(() => {
-      const { clientX, clientY } = window._lastMouse || { clientX: 0, clientY: 0 };
+      const { clientX, clientY } = fixedClickPosition || { clientX: 0, clientY: 0 };
       const el = document.elementFromPoint(clientX, clientY);
-
-      // Prevent clicking inside GUI panel
       if (el && !panel.contains(el)) {
         el.click();
 
@@ -184,14 +184,36 @@
     if (clickerInterval) {
       clearInterval(clickerInterval);
       clickerInterval = null;
-      updateStatus(false);
     }
+    updateStatus(false);
   }
+
+  // ----- Set Click Point on Next Click -----
+  document.getElementById('setClickPosition').onclick = () => {
+    alert("Click anywhere on the screen to set the click point.");
+    awaitingClick = true;
+  };
+
+  document.addEventListener('click', (e) => {
+    if (awaitingClick && !panel.contains(e.target)) {
+      fixedClickPosition = { clientX: e.clientX, clientY: e.clientY };
+      alert(`Click point set at X: ${fixedClickPosition.clientX}, Y: ${fixedClickPosition.clientY}`);
+      awaitingClick = false;
+      e.preventDefault();
+      e.stopPropagation();
+    }
+  }, true);
+
+  // ----- Clear Click Point -----
+  document.getElementById('clearClickPoint').onclick = () => {
+    fixedClickPosition = null;
+    alert('Fixed click point cleared.');
+  };
 
   // ----- Animation toggle -----
   let animationsDisabled = false;
   let animStyle = null;
-  function toggleAnimations() {
+  document.getElementById('toggleAnimations').onclick = () => {
     if (!animationsDisabled) {
       animStyle = document.createElement("style");
       animStyle.textContent = `* { transition: none !important; animation: none !important; }`;
@@ -204,18 +226,27 @@
       document.getElementById('toggleAnimations').style.color = 'black';
     }
     animationsDisabled = !animationsDisabled;
-  }
+  };
 
-  // ----- Button Events -----
+  // ----- Delay Slider -----
+  const delaySlider = document.getElementById('clickDelaySlider');
+  const delayValueLabel = document.getElementById('delayValue');
+  delaySlider.oninput = () => {
+    currentDelay = parseInt(delaySlider.value);
+    delayValueLabel.textContent = currentDelay;
+    if (clickerInterval) startClicker();
+  };
+  delaySlider.oninput();
+
+  // ----- Control Buttons -----
   document.getElementById('startClicker').onclick = startClicker;
   document.getElementById('stopClicker').onclick = stopClicker;
-  document.getElementById('toggleAnimations').onclick = toggleAnimations;
+
   document.getElementById('closeClicker').onclick = () => {
     stopClicker();
     animStyle?.remove();
     panel.remove();
     style.remove();
-    document.onmousemove = null;
   };
 
   const contentDiv = document.getElementById('clickerContent');
@@ -225,16 +256,4 @@
     contentDiv.style.display = minimized ? 'none' : 'block';
     document.getElementById('minimizeClicker').textContent = minimized ? '🗖' : '🗕';
   };
-
-  // ----- Delay Slider -----
-  const delaySlider = document.getElementById('clickDelaySlider');
-  const delayValueLabel = document.getElementById('delayValue');
-  delaySlider.oninput = () => {
-    currentDelay = parseInt(delaySlider.value);
-    delayValueLabel.textContent = currentDelay;
-    if (clickerInterval) startClicker(); // Restart with new delay
-  };
-  delaySlider.oninput();
 })();
-
-
