@@ -1,0 +1,56 @@
+(function () {
+    // Remove old panel if it exists
+    const existing = document.getElementById('timeHackPanel');
+    if (existing) existing.remove();
+
+    // Backup original functions
+    const originalPerformanceNow = performance.now.bind(performance);
+    const originalDateNow = Date.now.bind(Date);
+
+    let timeSpeed = 1.0;
+
+    // Override time functions
+    performance.now = () => originalPerformanceNow() * timeSpeed;
+    Date.now = () => originalDateNow() * timeSpeed;
+
+    // Create control panel
+    const panel = document.createElement('div');
+    panel.id = 'timeHackPanel';
+    panel.style.position = 'fixed';
+    panel.style.top = '20px';
+    panel.style.right = '20px';
+    panel.style.zIndex = 9999;
+    panel.style.background = 'rgba(0, 0, 0, 0.85)';
+    panel.style.color = 'white';
+    panel.style.padding = '12px';
+    panel.style.borderRadius = '8px';
+    panel.style.border = '1px solid #ccc';
+    panel.style.fontFamily = 'Arial, sans-serif';
+    panel.innerHTML = `
+        <div style="margin-bottom: 6px;"><strong>🕒 Time Speed Hack</strong></div>
+        <input id="speedSlider" type="range" min="1" max="100" value="1" style="width: 160px;">
+        <span id="speedValue">1x</span>
+        <div style="margin-top: 8px;">
+            <button id="closePanel" style="margin-top: 6px;">✖ Close</button>
+        </div>
+    `;
+    document.body.appendChild(panel);
+
+    const slider = document.getElementById('speedSlider');
+    const valueLabel = document.getElementById('speedValue');
+
+    slider.addEventListener('input', () => {
+        const val = parseInt(slider.value);
+        timeSpeed = val;
+        valueLabel.textContent = `${val}x`;
+        console.log(`[Time Hack] Speed set to ${val}x`);
+    });
+
+    document.getElementById('closePanel').onclick = () => {
+        timeSpeed = 1.0;
+        performance.now = originalPerformanceNow;
+        Date.now = originalDateNow;
+        panel.remove();
+        console.log("[Time Hack] Restored original time functions.");
+    };
+})();
