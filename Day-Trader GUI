@@ -1,0 +1,167 @@
+(() => {
+console.clear();
+
+// Inject CSS
+const style = document.createElement('style');
+style.innerHTML = `
+:root{--bg:#0b0f1a;--panel:#0f1224;--accent:#38bdf8;--muted:#94a3b8;--success:#10b981;--danger:#ef4444;--text:#e6eef8;}
+.dt-win{position:fixed;left:40px;top:40px;width:960px;height:640px;display:flex;flex-direction:column;border-radius:12px;overflow:hidden;box-shadow:0 10px 40px rgba(0,0,0,.8);background:var(--panel);border:1px solid rgba(255,255,255,0.05);color:var(--text);font-family:Inter,sans-serif;z-index:9999;resize:both;overflow:auto}
+.dt-title{cursor:move;padding:10px 14px;background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(0,0,0,0.08));display:flex;align-items:center;gap:8px;user-select:none;}
+.dt-dot{width:12px;height:12px;border-radius:50%;display:inline-block;cursor:pointer}
+.dt-dot.red{background:#ff5f56}
+.dt-dot.yellow{background:#ffbd2e}
+.dt-dot.green{background:#27c93f}
+.dt-title h1{font-size:14px;margin:0;font-weight:600;color:var(--text)}
+.dt-subtitle{font-size:12px;color:var(--muted);margin-left:8px}
+.dt-content{display:flex;flex:1;gap:12px;padding:12px;overflow:auto}
+.dt-left{width:66%;display:flex;flex-direction:column;gap:12px}
+.dt-right{width:34%;display:flex;flex-direction:column;gap:12px}
+.dt-card{background:linear-gradient(180deg, rgba(255,255,255,0.01), rgba(0,0,0,0.12));padding:10px;border-radius:10px;border:1px solid rgba(255,255,255,0.03);box-shadow:inset 0 1px 0 rgba(255,255,255,0.02)}
+canvas.dt-chart{width:100%;height:320px;background:linear-gradient(180deg,#01051a 0%, #02112a 100%);border-radius:8px}
+.dt-controls{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.dt-controls input[type=number], select{width:80px;padding:6px;border-radius:6px;border:1px solid rgba(255,255,255,0.08);background:#0b1220;color:var(--text)}
+.dt-button{padding:6px 10px;border-radius:6px;border:0;background:linear-gradient(180deg,var(--accent),#0ea5c9);color:#022233;font-weight:700;cursor:pointer}
+.dt-button.danger{background:linear-gradient(180deg,var(--danger),#d61c1c);color:white}
+.dt-footer{display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:linear-gradient(180deg, rgba(255,255,255,0.01), rgba(0,0,0,0.04))}`;
+document.head.appendChild(style);
+
+// Create window
+const win = document.createElement('div');
+win.className = 'dt-win';
+win.innerHTML = `
+<div class="dt-title" id="dtDragHandle">
+  <span class="dt-dot red" id="dtClose"></span>
+  <span class="dt-dot yellow" id="dtHide"></span>
+  <span class="dt-dot green" id="dtFullscreen"></span>
+  <h1>Mini Day-Trader</h1><div class="dt-subtitle">Drag this bar</div>
+  <div style="margin-left:auto"><span class="dt-subtitle" id="dtSpeedLabel">Speed: 1x</span></div>
+</div>
+<div class="dt-content">
+  <div class="dt-left">
+    <div class="dt-card">
+      <canvas class="dt-chart" id="dtChart"></canvas>
+    </div>
+    <div class="dt-card dt-controls">
+      <select id="dtTickerSelect"></select>
+      <input type="number" id="dtQty" value="10" min="1">
+      <button class="dt-button" id="dtBuy">Buy</button>
+      <button class="dt-button danger" id="dtSell">Sell</button>
+      Speed: <input type="number" id="dtSpeed" value="1" min="0.1" step="0.1" style="width:60px">
+    </div>
+  </div>
+  <div class="dt-right">
+    <div class="dt-card">
+      <div>Cash: $<span id="dtCash">10000.00</span></div>
+      <div>Position: <span id="dtPos">0</span></div>
+      <div>Avg Price: <span id="dtAvg">-</span></div>
+      <div>P/L: <span id="dtPL">0</span></div>
+    </div>
+  </div>
+</div>`;
+document.body.appendChild(win);
+
+// Draggable
+const handle = document.getElementById('dtDragHandle');
+let dragging=false, offsetX=0, offsetY=0;
+handle.addEventListener('pointerdown', e=>{dragging=true; offsetX=e.clientX-win.offsetLeft; offsetY=e.clientY-win.offsetTop;});
+window.addEventListener('pointermove', e=>{if(dragging){win.style.left=(e.clientX-offsetX)+'px'; win.style.top=(e.clientY-offsetY)+'px';}});
+window.addEventListener('pointerup', ()=>{dragging=false;});
+
+// Window controls
+document.getElementById('dtClose').addEventListener('click',()=>{win.remove();});
+let hidden=false;
+document.getElementById('dtHide').addEventListener('click',()=>{
+  hidden=!hidden;
+  const content=win.querySelector('.dt-content');
+  const titleText=win.querySelector('h1, .dt-subtitle');
+  if(hidden){
+    content.style.display='none';
+    // Optionally hide text but leave dots
+    titleText.style.display='none';
+  } else {
+    content.style.display='flex';
+    titleText.style.display='inline';
+  }
+});
+
+let fullscreen=false, originalStyle={};
+document.getElementById('dtFullscreen').addEventListener('click',()=>{
+  fullscreen=!fullscreen;
+  if(fullscreen){
+    originalStyle={left:win.style.left,top:win.style.top,width:win.style.width,height:win.style.height};
+    Object.assign(win.style,{left:'0',top:'0',width:'100vw',height:'100vh'});
+  } else {
+    Object.assign(win.style,originalStyle);
+  }
+});
+
+// Multiple tickers
+const tickers=['MCK','ALX','ZRX'];
+const tickerSelect=document.getElementById('dtTickerSelect');
+tickers.forEach(t=>{const opt=document.createElement('option');opt.value=t;opt.innerText=t;tickerSelect.appendChild(opt);});
+let portfolio={};
+tickers.forEach(t=>portfolio[t]={price:100,pos:0,avg:0,history:[100]});
+let cash=10000;
+let speed=parseFloat(document.getElementById('dtSpeed').value)||1;
+
+// Elements
+const qtyInput=document.getElementById('dtQty');
+const cashEl=document.getElementById('dtCash');
+const posEl=document.getElementById('dtPos');
+const avgEl=document.getElementById('dtAvg');
+const plEl=document.getElementById('dtPL');
+const chart=document.getElementById('dtChart');
+const ctx=chart.getContext('2d');
+const speedLabel=document.getElementById('dtSpeedLabel');
+
+function currentTicker(){return tickerSelect.value;}
+function updateDisplay(){
+  const t=currentTicker(); const data=portfolio[t];
+  cashEl.textContent=cash.toFixed(2);
+  posEl.textContent=data.pos;
+  avgEl.textContent=data.pos?data.avg.toFixed(2):'-';
+  const pl=data.pos?(data.price-data.avg)*data.pos:0;
+  plEl.textContent=pl.toFixed(2);
+  plEl.style.color=pl>0?'var(--success)':pl<0?'var(--danger)':'var(--text)';
+  drawChart(data.history);
+}
+function drawChart(history){
+  chart.width=chart.clientWidth*devicePixelRatio;
+  chart.height=chart.clientHeight*devicePixelRatio;
+  ctx.clearRect(0,0,chart.width,chart.height);
+  ctx.save(); ctx.scale(devicePixelRatio,devicePixelRatio);
+  const w=chart.clientWidth,h=chart.clientHeight;
+  const max=Math.max(...history),min=Math.min(...history);
+  ctx.beginPath(); ctx.strokeStyle='#38bdf8'; ctx.lineWidth=2;
+  history.forEach((p,i)=>{const x=i*(w/(history.length-1)); const y=h-(p-min)/(max-min)*h; i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);});
+  ctx.stroke(); ctx.restore();
+}
+
+function step(){tickers.forEach(t=>{
+  const data=portfolio[t]; const vol=1+Math.random()*2;
+  data.price*=(1+(Math.random()-0.5)*0.01*vol); data.price=Math.max(data.price,1);
+  data.history.push(data.price); if(data.history.length>500)data.history.shift();
+}); updateDisplay();}
+
+function buy(){const t=currentTicker(); const q=Math.floor(+qtyInput.value||1); const data=portfolio[t];
+const cost=q*data.price; if(cost>cash)return alert('Not enough cash');
+data.avg=data.pos===0?data.price:((data.avg*data.pos)+(data.price*q))/(data.pos+q); data.pos+=q; cash-=cost; updateDisplay();}
+function sell(){const t=currentTicker(); const q=Math.floor(+qtyInput.value||1); const data=portfolio[t];
+if(q>data.pos)return alert('Not enough position'); data.pos-=q; cash+=data.price*q; if(data.pos===0)data.avg=0; updateDisplay();}
+
+document.getElementById('dtBuy').addEventListener('click',buy);
+document.getElementById('dtSell').addEventListener('click',sell);
+tickerSelect.addEventListener('change',updateDisplay);
+qtyInput.addEventListener('change',updateDisplay);
+document.getElementById('dtSpeed').addEventListener('change',()=>{
+  speed=parseFloat(document.getElementById('dtSpeed').value)||1;
+  speedLabel.textContent='Speed: '+speed+'x';
+});
+
+// Main loop
+let lastTime=0;
+function loop(ts){if(!lastTime)lastTime=ts; const delta=ts-lastTime; if(delta>500/speed){step(); lastTime=ts;} requestAnimationFrame(loop);}
+requestAnimationFrame(loop);
+
+console.log('Mini Day-Trader GUI: yellow dot hides everything except dots!');
+})();
