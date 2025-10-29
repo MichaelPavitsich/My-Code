@@ -13,14 +13,13 @@ style.innerHTML = `
 .dt-dot.green{background:#27c93f}
 .dt-title h1{font-size:14px;margin:0;font-weight:600;color:var(--text)}
 .dt-subtitle{font-size:12px;color:var(--muted);margin-left:8px}
-#dtNewsBar{padding:6px 12px;background:rgba(255,255,255,0.06);font-size:13px;border-bottom:1px solid rgba(255,255,255,0.07);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .dt-content{display:flex;flex:1;gap:12px;padding:12px;overflow:auto}
 .dt-left{width:65%;display:flex;flex-direction:column;gap:12px}
 .dt-right{width:35%;display:flex;flex-direction:column;gap:12px}
 .dt-card{background:linear-gradient(180deg, rgba(255,255,255,0.01), rgba(0,0,0,0.12));padding:10px;border-radius:10px;border:1px solid rgba(255,255,255,0.03);box-shadow:inset 0 1px 0 rgba(255,255,255,0.02)}
 canvas.dt-chart{width:100%;height:180px;background:linear-gradient(180deg,#01051a 0%, #02112a 100%);border-radius:8px}
 .dt-controls{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
-.dt-controls input[type=number], select{width:90px;padding:6px;border-radius:6px;border:1px solid rgba(255,255,255,0.08);background:#0b1220;color:var(--text)}
+.dt-controls input[type=number], select, input[type=text]{padding:6px;border-radius:6px;border:1px solid rgba(255,255,255,0.08);background:#0b1220;color:var(--text)}
 .dt-button{padding:6px 10px;border-radius:6px;border:0;background:linear-gradient(180deg,var(--accent),#0ea5c9);color:#022233;font-weight:700;cursor:pointer}
 .dt-button.danger{background:linear-gradient(180deg,var(--danger),#d61c1c);color:white}
 .graph-label{font-size:12px;color:var(--muted);margin-bottom:4px;text-align:center;}
@@ -41,10 +40,17 @@ win.innerHTML=`
     <span class="dt-subtitle" id="dtSpeedLabel">Speed: 1x</span>
   </div>
 </div>
-<div id="dtNewsBar">Loading news...</div>
 <div class="dt-content">
   <div class="dt-left">
     <div class="dt-card dt-controls">
+      <input type="text" id="dtSearch" placeholder="Search stock...">
+      <select id="dtFilter">
+        <option value="all">All Stocks</option>
+        <option value="owned">Owned</option>
+        <option value="unowned">Unowned</option>
+        <option value="up">Going Up</option>
+        <option value="down">Going Down</option>
+      </select>
       <select id="dtTickerSelect"></select>
       <button class="dt-button" id="dtGraphTypeBtn">Switch to Candlestick</button>
       <span id="dtCurrentPrice">Price: $100.00</span>
@@ -102,14 +108,20 @@ document.getElementById('dtFullscreen').onclick=()=>{
 };
 
 // --- Companies ---
-const companies={TSLA:"Tesla Inc.",AAPL:"Apple Inc.",NVDA:"NVIDIA Corp.",AMZN:"Amazon.com Inc.",GME:"GameStop Corp."};
-const tickerSelect=document.getElementById('dtTickerSelect');
-for(let t in companies){let o=document.createElement('option'); o.value=t; o.innerText=`${t} — ${companies[t]}`; tickerSelect.appendChild(o);}
+const companies = {
+  TSLA:"Tesla Inc.", AAPL:"Apple Inc.", NVDA:"NVIDIA Corp.", AMZN:"Amazon.com Inc.", GME:"GameStop Corp.",
+  MSFT:"Microsoft Corp.", META:"Meta Platforms Inc.", NFLX:"Netflix Inc.", DIS:"Walt Disney Co.", BABA:"Alibaba Group",
+  JPM:"JPMorgan Chase & Co.", BAC:"Bank of America", XOM:"Exxon Mobil Corp.", CVX:"Chevron Corp.", WMT:"Walmart Inc.",
+  KO:"Coca-Cola Co.", PFE:"Pfizer Inc.", MRK:"Merck & Co.", NVAX:"Novavax Inc.", UBER:"Uber Technologies",
+  LYFT:"Lyft Inc.", SHOP:"Shopify Inc.", SQ:"Block Inc.", INTC:"Intel Corp.", AMD:"Advanced Micro Devices",
+  SPY:"S&P 500 ETF", QQQ:"Nasdaq 100 ETF", TSN:"Tyson Foods", BA:"Boeing Co.", NIO:"NIO Inc.",
+  RBLX:"Roblox Corp.", ZM:"Zoom Video Communications"
+};
 
 // --- Portfolio & History ---
 let portfolio={},cash=10000,speed=1;
-for(let t in companies) portfolio[t]={price:100,pos:0,avg:0,history:[],candles:[],momentum:0};
-let history={profit:[],cash:[],pos:[]};
+for(let t in companies) portfolio[t]={price:100,pos:0,avg:0,history:[100],candles:[],momentum:0};
+let history={profit:[0],cash:[cash],pos:[0]};
 
 // --- Elements ---
 const qty=document.getElementById('dtQty'),cashEl=document.getElementById('dtCash'),
@@ -127,8 +139,52 @@ document.getElementById('dtGraphTypeBtn').onclick=()=>{
   update();
 };
 
+// --- Ticker filtering & search ---
+const tickerSelect=document.getElementById('dtTickerSelect'),
+      searchInput=document.getElementById('dtSearch'),
+      filterSelect=document.getElementById('dtFilter');
+
+function updateTickerList(){
+  const currentTicker = tickerSelect.value || Object.keys(companies)[0];
+  const query = searchInput.value.toLowerCase();
+  const filter = filterSelect.value;
+  tickerSelect.innerHTML='';
+
+  for(let t in companies){
+    const d = portfolio[t];
+    const name = companies[t];
+    const change = d.history.length>1 ? d.history[d.history.length-1]-d.history[d.history.length-2] : 0;
+
+    if(filter==='owned' && d.pos===0) continue;
+    if(filter==='unowned' && d.pos>0) continue;
+    if(filter==='up' && change<=0) continue;
+    if(filter==='down' && change>=0) continue;
+    if(!t.toLowerCase().includes(query) && !name.toLowerCase().includes(query)) continue;
+
+    const option = document.createElement('option');
+    option.value = t;
+    option.innerText = `${t} — ${name} | $${d.price.toFixed(2)} | Pos:${d.pos} | Δ:${change.toFixed(2)}`;
+    option.style.color = change>0?'var(--success)':change<0?'var(--danger)':'var(--muted)';
+    tickerSelect.appendChild(option);
+  }
+
+  // Preserve selection even if filtered out
+  if(!Array.from(tickerSelect.options).some(o=>o.value===currentTicker)){
+    const d = portfolio[currentTicker];
+    const opt = document.createElement('option');
+    opt.value = currentTicker;
+    opt.innerText = `${currentTicker} — ${companies[currentTicker]} | $${d.price.toFixed(2)} | Pos:${d.pos}`;
+    opt.style.color = '#888';
+    tickerSelect.appendChild(opt);
+  }
+  tickerSelect.value = currentTicker;
+}
+
+searchInput.oninput = updateTickerList;
+filterSelect.onchange = updateTickerList;
+
 // --- Helper ---
-function ticker(){return tickerSelect.value;}
+function ticker(){return tickerSelect.value||Object.keys(companies)[0];}
 
 // --- Update ---
 function update(){
@@ -146,18 +202,20 @@ function update(){
   drawGraph(posCanvas, history.pos,'#facc15');
 }
 
-// --- Draw charts ---
+// --- Draw Graphs ---
 function drawGraph(canvas,data,color){
+  if(data.length<2) return;
   const ctx=canvas.getContext('2d');
   canvas.width=canvas.clientWidth*devicePixelRatio;
   canvas.height=canvas.clientHeight*devicePixelRatio;
   ctx.save(); ctx.scale(devicePixelRatio,devicePixelRatio);
   ctx.clearRect(0,0,canvas.clientWidth,canvas.clientHeight);
   const w=canvas.clientWidth,h=canvas.clientHeight;
-  if(data.length<2) return;
-  const max=Math.max(...data), min=Math.min(...data);
+  const max=Math.max(...data);
+  const min=Math.min(...data);
+  if(max===min){ ctx.beginPath(); ctx.strokeStyle=color; ctx.lineWidth=2; ctx.moveTo(0,h/2); ctx.lineTo(w,h/2); ctx.stroke(); ctx.restore(); return; }
   ctx.beginPath(); ctx.strokeStyle=color; ctx.lineWidth=2;
-  data.forEach((v,i)=>{const x=i*(w/(data.length-1)); const y=h-(v-min)/(max-min)*h; i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);});
+  data.forEach((v,i)=>{const x=i*(w/(data.length-1)), y=h-(v-min)/(max-min)*h; i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);});
   ctx.stroke(); ctx.restore();
 }
 
@@ -195,6 +253,7 @@ function drawPrice(d){
     if(!data.length) return;
     const max=Math.max(...data,d.pos?d.avg:0);
     const min=Math.min(...data,d.pos?d.avg:Infinity);
+    if(max===min){ ctx.beginPath(); ctx.strokeStyle='#38bdf8'; ctx.lineWidth=2; ctx.moveTo(0,h/2); ctx.lineTo(w,h/2); ctx.stroke(); ctx.restore(); return; }
     ctx.beginPath(); ctx.strokeStyle='#38bdf8'; ctx.lineWidth=2;
     data.forEach((p,i)=>{const x=i*(w/(data.length-1)),y=h-(p-min)/(max-min)*h; i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);});
     ctx.stroke();
@@ -244,6 +303,8 @@ function step(){
   const pl=d.pos?(d.price-d.avg)*d.pos:0;
   history.profit.push(pl); history.cash.push(cash); history.pos.push(d.pos);
   if(history.profit.length>500){history.profit.shift(); history.cash.shift(); history.pos.shift();}
+
+  updateTickerList();
   update();
 }
 
@@ -251,5 +312,10 @@ function step(){
 let lastTime=0;
 function loop(ts){if(ts-lastTime>500/speed){step(); lastTime=ts;} requestAnimationFrame(loop);}
 requestAnimationFrame(loop);
+
+// --- Initial setup ---
+updateTickerList();
+update();
 })();
+
 
