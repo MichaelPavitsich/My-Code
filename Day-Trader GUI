@@ -58,9 +58,10 @@ win.innerHTML=`
     <div class="dt-card"><canvas class="dt-chart" id="dtPriceChart" height="180"></canvas></div>
     <div class="dt-card dt-controls">
       <input type="number" id="dtQty" value="10" min="1">
+      <button class="dt-button" id="dtBuyAll">Buy All</button>
       <button class="dt-button" id="dtBuy">Buy</button>
       <button class="dt-button danger" id="dtSell">Sell</button>
-      <button class="dt-button" id="dtBuyAll">Buy All</button>
+      
       <button class="dt-button danger" id="dtSellAll">Sell All</button>
       Speed: <input type="number" id="dtSpeed" value="1" min="0.1" step="0.1" style="width:60px">
     </div>
