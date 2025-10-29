@@ -1,11 +1,11 @@
 (() => {
 console.clear();
 
-// Inject CSS
+// --- CSS ---
 const style = document.createElement('style');
 style.innerHTML = `
 :root{--bg:#0b0f1a;--panel:#0f1224;--accent:#38bdf8;--muted:#94a3b8;--success:#10b981;--danger:#ef4444;--text:#e6eef8;}
-.dt-win{position:fixed;left:40px;top:40px;width:960px;height:640px;display:flex;flex-direction:column;border-radius:12px;overflow:hidden;box-shadow:0 10px 40px rgba(0,0,0,.8);background:var(--panel);border:1px solid rgba(255,255,255,0.05);color:var(--text);font-family:Inter,sans-serif;z-index:9999;resize:both;overflow:auto}
+.dt-win{position:fixed;left:40px;top:40px;width:1000px;height:730px;display:flex;flex-direction:column;border-radius:12px;overflow:hidden;box-shadow:0 10px 40px rgba(0,0,0,.8);background:var(--panel);border:1px solid rgba(255,255,255,0.05);color:var(--text);font-family:Inter,sans-serif;z-index:9999;resize:both;overflow:auto}
 .dt-title{cursor:move;padding:10px 14px;background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(0,0,0,0.08));display:flex;align-items:center;gap:8px;user-select:none;}
 .dt-dot{width:12px;height:12px;border-radius:50%;display:inline-block;cursor:pointer}
 .dt-dot.red{background:#ff5f56}
@@ -13,36 +13,44 @@ style.innerHTML = `
 .dt-dot.green{background:#27c93f}
 .dt-title h1{font-size:14px;margin:0;font-weight:600;color:var(--text)}
 .dt-subtitle{font-size:12px;color:var(--muted);margin-left:8px}
+#dtNewsBar{padding:6px 12px;background:rgba(255,255,255,0.06);font-size:13px;border-bottom:1px solid rgba(255,255,255,0.07);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .dt-content{display:flex;flex:1;gap:12px;padding:12px;overflow:auto}
-.dt-left{width:66%;display:flex;flex-direction:column;gap:12px}
-.dt-right{width:34%;display:flex;flex-direction:column;gap:12px}
+.dt-left{width:65%;display:flex;flex-direction:column;gap:12px}
+.dt-right{width:35%;display:flex;flex-direction:column;gap:12px}
 .dt-card{background:linear-gradient(180deg, rgba(255,255,255,0.01), rgba(0,0,0,0.12));padding:10px;border-radius:10px;border:1px solid rgba(255,255,255,0.03);box-shadow:inset 0 1px 0 rgba(255,255,255,0.02)}
-canvas.dt-chart{width:100%;height:320px;background:linear-gradient(180deg,#01051a 0%, #02112a 100%);border-radius:8px}
+canvas.dt-chart{width:100%;height:180px;background:linear-gradient(180deg,#01051a 0%, #02112a 100%);border-radius:8px}
 .dt-controls{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
-.dt-controls input[type=number], select{width:80px;padding:6px;border-radius:6px;border:1px solid rgba(255,255,255,0.08);background:#0b1220;color:var(--text)}
+.dt-controls input[type=number], select{width:90px;padding:6px;border-radius:6px;border:1px solid rgba(255,255,255,0.08);background:#0b1220;color:var(--text)}
 .dt-button{padding:6px 10px;border-radius:6px;border:0;background:linear-gradient(180deg,var(--accent),#0ea5c9);color:#022233;font-weight:700;cursor:pointer}
 .dt-button.danger{background:linear-gradient(180deg,var(--danger),#d61c1c);color:white}
-.dt-footer{display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:linear-gradient(180deg, rgba(255,255,255,0.01), rgba(0,0,0,0.04))}`;
+.graph-label{font-size:12px;color:var(--muted);margin-bottom:4px;text-align:center;}
+#dtCurrentPrice{font-size:14px;color:#38bdf8;margin-left:10px;}
+`;
 document.head.appendChild(style);
 
-// Create window
-const win = document.createElement('div');
-win.className = 'dt-win';
-win.innerHTML = `
+// --- Window HTML ---
+const win=document.createElement('div');
+win.className='dt-win';
+win.innerHTML=`
 <div class="dt-title" id="dtDragHandle">
   <span class="dt-dot red" id="dtClose"></span>
   <span class="dt-dot yellow" id="dtHide"></span>
   <span class="dt-dot green" id="dtFullscreen"></span>
   <h1>Mini Day-Trader</h1><div class="dt-subtitle">Drag this bar</div>
-  <div style="margin-left:auto"><span class="dt-subtitle" id="dtSpeedLabel">Speed: 1x</span></div>
+  <div style="margin-left:auto">
+    <span class="dt-subtitle" id="dtSpeedLabel">Speed: 1x</span>
+  </div>
 </div>
+<div id="dtNewsBar">Loading news...</div>
 <div class="dt-content">
   <div class="dt-left">
-    <div class="dt-card">
-      <canvas class="dt-chart" id="dtChart"></canvas>
-    </div>
     <div class="dt-card dt-controls">
       <select id="dtTickerSelect"></select>
+      <button class="dt-button" id="dtGraphTypeBtn">Switch to Candlestick</button>
+      <span id="dtCurrentPrice">Price: $100.00</span>
+    </div>
+    <div class="dt-card"><canvas class="dt-chart" id="dtPriceChart" height="180"></canvas></div>
+    <div class="dt-card dt-controls">
       <input type="number" id="dtQty" value="10" min="1">
       <button class="dt-button" id="dtBuy">Buy</button>
       <button class="dt-button danger" id="dtSell">Sell</button>
@@ -56,112 +64,192 @@ win.innerHTML = `
       <div>Avg Price: <span id="dtAvg">-</span></div>
       <div>P/L: <span id="dtPL">0</span></div>
     </div>
+    <div class="dt-card">
+      <div class="graph-label">Profit / Loss</div>
+      <canvas class="dt-chart" id="dtPLChart" height="100"></canvas>
+    </div>
+    <div class="dt-card">
+      <div class="graph-label">Cash</div>
+      <canvas class="dt-chart" id="dtCashChart" height="100"></canvas>
+    </div>
+    <div class="dt-card">
+      <div class="graph-label">Position Size</div>
+      <canvas class="dt-chart" id="dtPosChart" height="100"></canvas>
+    </div>
   </div>
-</div>`;
+</div>
+`;
 document.body.appendChild(win);
 
-// Draggable
-const handle = document.getElementById('dtDragHandle');
-let dragging=false, offsetX=0, offsetY=0;
-handle.addEventListener('pointerdown', e=>{dragging=true; offsetX=e.clientX-win.offsetLeft; offsetY=e.clientY-win.offsetTop;});
-window.addEventListener('pointermove', e=>{if(dragging){win.style.left=(e.clientX-offsetX)+'px'; win.style.top=(e.clientY-offsetY)+'px';}});
-window.addEventListener('pointerup', ()=>{dragging=false;});
+// --- Dragging ---
+let drag=false,offX=0,offY=0;
+document.getElementById('dtDragHandle').onpointerdown=e=>{drag=true;offX=e.clientX-win.offsetLeft;offY=e.clientY-win.offsetTop;}
+window.onpointermove=e=>{if(drag){win.style.left=e.clientX-offX+'px';win.style.top=e.clientY-offY+'px';}}
+window.onpointerup=()=>drag=false;
 
-// Window controls
-document.getElementById('dtClose').addEventListener('click',()=>{win.remove();});
+// --- Window controls ---
+document.getElementById('dtClose').onclick=()=>win.remove();
 let hidden=false;
-document.getElementById('dtHide').addEventListener('click',()=>{
-  hidden=!hidden;
-  const content=win.querySelector('.dt-content');
-  const titleText=win.querySelector('h1, .dt-subtitle');
-  if(hidden){
-    content.style.display='none';
-    // Optionally hide text but leave dots
-    titleText.style.display='none';
-  } else {
-    content.style.display='flex';
-    titleText.style.display='inline';
-  }
-});
+document.getElementById('dtHide').onclick=()=>{
+ hidden=!hidden;
+ win.querySelector('.dt-content').style.display=hidden?'none':'flex';
+};
+let fs=false,save={};
+document.getElementById('dtFullscreen').onclick=()=>{
+ fs=!fs;
+ if(fs){save={left:win.style.left,top:win.style.top,width:win.style.width,height:win.style.height};Object.assign(win.style,{left:'0',top:'0',width:'100vw',height:'100vh'});}
+ else Object.assign(win.style,save);
+};
 
-let fullscreen=false, originalStyle={};
-document.getElementById('dtFullscreen').addEventListener('click',()=>{
-  fullscreen=!fullscreen;
-  if(fullscreen){
-    originalStyle={left:win.style.left,top:win.style.top,width:win.style.width,height:win.style.height};
-    Object.assign(win.style,{left:'0',top:'0',width:'100vw',height:'100vh'});
-  } else {
-    Object.assign(win.style,originalStyle);
-  }
-});
-
-// Multiple tickers
-const tickers=['MCK','ALX','ZRX'];
+// --- Companies ---
+const companies={TSLA:"Tesla Inc.",AAPL:"Apple Inc.",NVDA:"NVIDIA Corp.",AMZN:"Amazon.com Inc.",GME:"GameStop Corp."};
 const tickerSelect=document.getElementById('dtTickerSelect');
-tickers.forEach(t=>{const opt=document.createElement('option');opt.value=t;opt.innerText=t;tickerSelect.appendChild(opt);});
-let portfolio={};
-tickers.forEach(t=>portfolio[t]={price:100,pos:0,avg:0,history:[100]});
-let cash=10000;
-let speed=parseFloat(document.getElementById('dtSpeed').value)||1;
+for(let t in companies){let o=document.createElement('option'); o.value=t; o.innerText=`${t} — ${companies[t]}`; tickerSelect.appendChild(o);}
 
-// Elements
-const qtyInput=document.getElementById('dtQty');
-const cashEl=document.getElementById('dtCash');
-const posEl=document.getElementById('dtPos');
-const avgEl=document.getElementById('dtAvg');
-const plEl=document.getElementById('dtPL');
-const chart=document.getElementById('dtChart');
-const ctx=chart.getContext('2d');
-const speedLabel=document.getElementById('dtSpeedLabel');
+// --- Portfolio & History ---
+let portfolio={},cash=10000,speed=1;
+for(let t in companies) portfolio[t]={price:100,pos:0,avg:0,history:[],candles:[],momentum:0};
+let history={profit:[],cash:[],pos:[]};
 
-function currentTicker(){return tickerSelect.value;}
-function updateDisplay(){
-  const t=currentTicker(); const data=portfolio[t];
+// --- Elements ---
+const qty=document.getElementById('dtQty'),cashEl=document.getElementById('dtCash'),
+posEl=document.getElementById('dtPos'),avgEl=document.getElementById('dtAvg'),
+plEl=document.getElementById('dtPL'),priceCanvas=document.getElementById('dtPriceChart'),
+plCanvas=document.getElementById('dtPLChart'),cashCanvas=document.getElementById('dtCashChart'),
+posCanvas=document.getElementById('dtPosChart'),currentPriceEl=document.getElementById('dtCurrentPrice');
+
+let useCandlestick=false;
+
+// --- Graph switch ---
+document.getElementById('dtGraphTypeBtn').onclick=()=>{
+  useCandlestick=!useCandlestick;
+  document.getElementById('dtGraphTypeBtn').innerText=useCandlestick?"Switch to Line Graph":"Switch to Candlestick";
+  update();
+};
+
+// --- Helper ---
+function ticker(){return tickerSelect.value;}
+
+// --- Update ---
+function update(){
+  const t=ticker(),d=portfolio[t];
+  const pl=d.pos?(d.price-d.avg)*d.pos:0;
   cashEl.textContent=cash.toFixed(2);
-  posEl.textContent=data.pos;
-  avgEl.textContent=data.pos?data.avg.toFixed(2):'-';
-  const pl=data.pos?(data.price-data.avg)*data.pos:0;
+  posEl.textContent=d.pos;
+  avgEl.textContent=d.pos?d.avg.toFixed(2):'-';
   plEl.textContent=pl.toFixed(2);
   plEl.style.color=pl>0?'var(--success)':pl<0?'var(--danger)':'var(--text)';
-  drawChart(data.history);
+  currentPriceEl.textContent=`Price: $${d.price.toFixed(2)}`;
+  drawPrice(d);
+  drawGraph(plCanvas, history.profit,'#10b981');
+  drawGraph(cashCanvas, history.cash,'#38bdf8');
+  drawGraph(posCanvas, history.pos,'#facc15');
 }
-function drawChart(history){
-  chart.width=chart.clientWidth*devicePixelRatio;
-  chart.height=chart.clientHeight*devicePixelRatio;
-  ctx.clearRect(0,0,chart.width,chart.height);
+
+// --- Draw charts ---
+function drawGraph(canvas,data,color){
+  const ctx=canvas.getContext('2d');
+  canvas.width=canvas.clientWidth*devicePixelRatio;
+  canvas.height=canvas.clientHeight*devicePixelRatio;
   ctx.save(); ctx.scale(devicePixelRatio,devicePixelRatio);
-  const w=chart.clientWidth,h=chart.clientHeight;
-  const max=Math.max(...history),min=Math.min(...history);
-  ctx.beginPath(); ctx.strokeStyle='#38bdf8'; ctx.lineWidth=2;
-  history.forEach((p,i)=>{const x=i*(w/(history.length-1)); const y=h-(p-min)/(max-min)*h; i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);});
+  ctx.clearRect(0,0,canvas.clientWidth,canvas.clientHeight);
+  const w=canvas.clientWidth,h=canvas.clientHeight;
+  if(data.length<2) return;
+  const max=Math.max(...data), min=Math.min(...data);
+  ctx.beginPath(); ctx.strokeStyle=color; ctx.lineWidth=2;
+  data.forEach((v,i)=>{const x=i*(w/(data.length-1)); const y=h-(v-min)/(max-min)*h; i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);});
   ctx.stroke(); ctx.restore();
 }
 
-function step(){tickers.forEach(t=>{
-  const data=portfolio[t]; const vol=1+Math.random()*2;
-  data.price*=(1+(Math.random()-0.5)*0.01*vol); data.price=Math.max(data.price,1);
-  data.history.push(data.price); if(data.history.length>500)data.history.shift();
-}); updateDisplay();}
+function drawPrice(d){
+  const ctx=priceCanvas.getContext('2d');
+  priceCanvas.width=priceCanvas.clientWidth*devicePixelRatio;
+  priceCanvas.height=priceCanvas.clientHeight*devicePixelRatio;
+  ctx.save(); ctx.scale(devicePixelRatio,devicePixelRatio);
+  ctx.clearRect(0,0,priceCanvas.clientWidth,priceCanvas.clientHeight);
+  const w=priceCanvas.clientWidth,h=priceCanvas.clientHeight;
+  if(useCandlestick){
+    const candles=d.candles.slice(-50);
+    if(!candles.length) return;
+    let min=Math.min(...candles.map(c=>c.low),d.pos?d.avg:Infinity);
+    let max=Math.max(...candles.map(c=>c.high),d.pos?d.avg:-Infinity);
+    const candleWidth=w/candles.length*0.7;
+    candles.forEach((c,i)=>{
+      const x=i*(w/candles.length)+candleWidth/2;
+      const yOpen=h-(c.open-min)/(max-min)*h;
+      const yClose=h-(c.close-min)/(max-min)*h;
+      const yHigh=h-(c.high-min)/(max-min)*h;
+      const yLow=h-(c.low-min)/(max-min)*h;
+      ctx.strokeStyle=c.close>=c.open?'#10b981':'#ef4444';
+      ctx.fillStyle=c.close>=c.open?'#10b981':'#ef4444';
+      ctx.beginPath(); ctx.moveTo(x,yHigh); ctx.lineTo(x,yLow); ctx.stroke();
+      ctx.fillRect(x-candleWidth/2, Math.min(yOpen,yClose), candleWidth, Math.max(Math.abs(yClose-yOpen),1));
+    });
+    if(d.pos>0){
+      const y=h-(d.avg-min)/(max-min)*h;
+      ctx.beginPath(); ctx.strokeStyle='#38bdf8'; ctx.lineWidth=2; ctx.setLineDash([5,5]);
+      ctx.moveTo(0,y); ctx.lineTo(w,y); ctx.stroke(); ctx.setLineDash([]);
+    }
+  } else {
+    const data=d.history.slice(-100);
+    if(!data.length) return;
+    const max=Math.max(...data,d.pos?d.avg:0);
+    const min=Math.min(...data,d.pos?d.avg:Infinity);
+    ctx.beginPath(); ctx.strokeStyle='#38bdf8'; ctx.lineWidth=2;
+    data.forEach((p,i)=>{const x=i*(w/(data.length-1)),y=h-(p-min)/(max-min)*h; i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);});
+    ctx.stroke();
+    if(d.pos>0){
+      const y=h-(d.avg-min)/(max-min)*h;
+      ctx.beginPath(); ctx.strokeStyle='#10b981'; ctx.lineWidth=2; ctx.setLineDash([5,5]);
+      ctx.moveTo(0,y); ctx.lineTo(w,y); ctx.stroke(); ctx.setLineDash([]);
+    }
+  }
+}
 
-function buy(){const t=currentTicker(); const q=Math.floor(+qtyInput.value||1); const data=portfolio[t];
-const cost=q*data.price; if(cost>cash)return alert('Not enough cash');
-data.avg=data.pos===0?data.price:((data.avg*data.pos)+(data.price*q))/(data.pos+q); data.pos+=q; cash-=cost; updateDisplay();}
-function sell(){const t=currentTicker(); const q=Math.floor(+qtyInput.value||1); const data=portfolio[t];
-if(q>data.pos)return alert('Not enough position'); data.pos-=q; cash+=data.price*q; if(data.pos===0)data.avg=0; updateDisplay();}
+// --- Trading ---
+document.getElementById('dtBuy').onclick=()=>{
+  const t=ticker(),d=portfolio[t],q=+qty.value||1,c=q*d.price;
+  if(c>cash) return alert("Not enough cash");
+  d.avg=d.pos?((d.avg*d.pos)+(d.price*q))/(d.pos+q):d.price;
+  d.pos+=q; cash-=c;
+  update();
+};
+document.getElementById('dtSell').onclick=()=>{
+  const t=ticker(),d=portfolio[t],q=+qty.value||1;
+  if(q>d.pos) return alert("Not enough position");
+  d.pos-=q; cash+=d.price*q; if(!d.pos)d.avg=0;
+  update();
+};
 
-document.getElementById('dtBuy').addEventListener('click',buy);
-document.getElementById('dtSell').addEventListener('click',sell);
-tickerSelect.addEventListener('change',updateDisplay);
-qtyInput.addEventListener('change',updateDisplay);
-document.getElementById('dtSpeed').addEventListener('change',()=>{
-  speed=parseFloat(document.getElementById('dtSpeed').value)||1;
-  speedLabel.textContent='Speed: '+speed+'x';
-});
+// --- Speed ---
+document.getElementById('dtSpeed').onchange=()=>{speed=parseFloat(document.getElementById('dtSpeed').value)||1; document.getElementById('dtSpeedLabel').textContent=`Speed: ${speed}x`;};
 
-// Main loop
+// --- Market movement ---
+function step(){
+  for(let t in portfolio){
+    const d=portfolio[t];
+    d.momentum=d.momentum*0.95+(Math.random()-0.5)*0.03;
+    const open=d.price;
+    d.price*=1+d.momentum;
+    d.price=Math.max(d.price,1);
+    const close=d.price;
+    const high=Math.max(open,close)*(1+Math.random()*0.01);
+    const low=Math.min(open,close)*(1-Math.random()*0.01);
+    d.candles.push({open,high,low,close});
+    d.history.push(close);
+    if(d.candles.length>50) d.candles.shift();
+    if(d.history.length>500) d.history.shift();
+  }
+  const t=ticker(),d=portfolio[t];
+  const pl=d.pos?(d.price-d.avg)*d.pos:0;
+  history.profit.push(pl); history.cash.push(cash); history.pos.push(d.pos);
+  if(history.profit.length>500){history.profit.shift(); history.cash.shift(); history.pos.shift();}
+  update();
+}
+
+// --- Loop ---
 let lastTime=0;
-function loop(ts){if(!lastTime)lastTime=ts; const delta=ts-lastTime; if(delta>500/speed){step(); lastTime=ts;} requestAnimationFrame(loop);}
+function loop(ts){if(ts-lastTime>500/speed){step(); lastTime=ts;} requestAnimationFrame(loop);}
 requestAnimationFrame(loop);
-
-console.log('Mini Day-Trader GUI: yellow dot hides everything except dots!');
 })();
+
