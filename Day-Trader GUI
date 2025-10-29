@@ -60,6 +60,8 @@ win.innerHTML=`
       <input type="number" id="dtQty" value="10" min="1">
       <button class="dt-button" id="dtBuy">Buy</button>
       <button class="dt-button danger" id="dtSell">Sell</button>
+      <button class="dt-button" id="dtBuyAll">Buy All</button>
+      <button class="dt-button danger" id="dtSellAll">Sell All</button>
       Speed: <input type="number" id="dtSpeed" value="1" min="0.1" step="0.1" style="width:60px">
     </div>
   </div>
@@ -277,6 +279,26 @@ document.getElementById('dtSell').onclick=()=>{
   const t=ticker(),d=portfolio[t],q=+qty.value||1;
   if(q>d.pos) return alert("Not enough position");
   d.pos-=q; cash+=d.price*q; if(!d.pos)d.avg=0;
+  update();
+};
+
+// --- BUY ALL / SELL ALL ---
+document.getElementById('dtBuyAll').onclick = () => {
+  const t = ticker(), d = portfolio[t];
+  const maxQty = Math.floor(cash / d.price);
+  if (maxQty <= 0) return alert("Not enough cash to buy anything.");
+  d.avg = d.pos ? ((d.avg * d.pos) + (d.price * maxQty)) / (d.pos + maxQty) : d.price;
+  d.pos += maxQty;
+  cash -= d.price * maxQty;
+  update();
+};
+
+document.getElementById('dtSellAll').onclick = () => {
+  const t = ticker(), d = portfolio[t];
+  if (d.pos <= 0) return alert("No position to sell.");
+  cash += d.price * d.pos;
+  d.pos = 0;
+  d.avg = 0;
   update();
 };
 
